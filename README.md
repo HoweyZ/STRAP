@@ -8,8 +8,6 @@
 [![arXiv](https://img.shields.io/badge/arXiv-paper-b31b1b.svg)](https://arxiv.org/abs/2505.19547/)
 [![GitHub stars](https://img.shields.io/github/stars/HoweyZ/STRAP?style=social)](https://github.com/HoweyZ/STRAP)
 
-**Spatio-Temporal Pattern Retrieval Framework for Out-of-Distribution Generalization**
-
 [📄 Paper](https://arxiv.org/abs/2505.19547) | [📊 Datasets](https://drive.google.com/drive/folders/1OiMLuFBdc56CLekileRjH0xyhDWuoC6C)
 
 </div>
@@ -34,7 +32,7 @@
 ---
 
 ## 🏗️ Repository Structure
-
+```
 STRAP/
 │
 ├── 📄 README.md                    # Project documentation
@@ -68,7 +66,7 @@ STRAP/
 ├── 📁 font/                        # Font files for visualization
 ├── 📁 log/                         # 📊 Training logs and checkpoints
 └── 📁 data/                        # 💾 Dataset storage (create this)
-
+```
 ---
 
 ## 🚀 Getting Started
