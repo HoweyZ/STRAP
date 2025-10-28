@@ -1,0 +1,128 @@
+2025-04-27 19:17:34,352 - logger name:log/ENERGY-Wind/stadapter_st-100/stadapter_st.log
+2025-04-27 19:17:34,352 - params : {'conf': 'conf/ENERGY-Wind/stadapter.json', 'seed': 100, 'paral': 0, 'backbone_type': 'stgnn', 'gpuid': 2, 'logname': 'stadapter_st', 'method': 'ST-Adapter', 'load_first_year': 0, 'first_year_model_path': '/home/haoyu.zhang/MoE_GNN/new/code/log/AIR/stlora_T-24/2016/21.3875.pkl', 'device': device(type='cuda', index=2), 'methods': {'PECPM': <class 'src.model.model.PECPM_Model'>, 'ST-Adapter': <class 'src.model.model.STAdapter_Model'>, 'GraphPro': <class 'src.model.model.GraphPro_Model'>, 'RAGraph': <class 'src.model.model.RAGraph_Model'>, 'STGNN_Model': <class 'src.model.model.STGNN_Model'>, 'ASTGNN_Model': <class 'src.model.model.ASTGNN_Model'>, 'DCRNN_Model': <class 'src.model.model.DCRNN_Model'>, 'TGCN_Model': <class 'src.model.model.TGCN_Model'>, 'STLoRA': <class 'src.model.model.STLora_Model'>, 'RAP': <class 'src.model.model.RAP_Model'>, 'TrafficStream': <class 'src.model.model.TrafficStream_Model'>, 'STKEC': <class 'src.model.model.STKEC_Model'>, 'EAC': <class 'src.model.model.EAC_Model'>}, 'begin_year': 0, 'end_year': 3, 'dropout': 0.0, 'lr': 0.03, 'batch_size': 128, 'epoch': 100, 'loss': 'mse', 'activation': 'relu', 'scheduler': 'epo', 'y_len': 12, 'x_len': 12, 'data_process': 0, 'raw_data_path': 'data/ENERGY-Wind/RawData/', 'save_data_path': 'data/ENERGY-Wind/FastData/', 'graph_path': 'data/ENERGY-Wind/graph/', 'model_path': 'log/ENERGY-Wind/', 'gcn': {'in_channel': 12, 'out_channel': 12, 'hidden_channel': 64}, 'tcn': {'in_channel': 1, 'out_channel': 1, 'kernel_size': 3, 'dilation': 1}, 'init': True, 'train': 1, 'auto_test': 0, 'strategy': 'retrain', 'detect': False, 'ewc': False, 'replay': False, 'path': 'log/ENERGY-Wind/stadapter_st-100', 'logger': <Logger utils.initialize (INFO)>}
+2025-04-27 19:17:34,365 - [*] Year 0 load from data/ENERGY-Wind/FastData/0.npz
+2025-04-27 19:17:34,863 - [*] Year 0 Dataset load!
+2025-04-27 19:17:34,866 - ST-Adapter initialized with backbone stgnn
+2025-04-27 19:17:34,866 - Adapter bottleneck ratio: 1/8
+2025-04-27 19:17:34,867 - [*] Year 0 Training start
+2025-04-27 19:17:35,243 - node number torch.Size([13184, 12])
+2025-04-27 19:17:36,746 - epoch:0, training loss:201.9755 validation loss:2.8706
+2025-04-27 19:17:38,345 - epoch:1, training loss:3.2721 validation loss:3.3531
+2025-04-27 19:17:39,915 - epoch:2, training loss:2.3072 validation loss:3.3512
+2025-04-27 19:17:41,603 - epoch:3, training loss:2.1840 validation loss:3.2173
+2025-04-27 19:17:43,255 - epoch:4, training loss:2.1252 validation loss:3.3381
+2025-04-27 19:17:44,912 - epoch:5, training loss:2.0624 validation loss:3.0502
+2025-04-27 19:17:46,568 - epoch:6, training loss:2.0424 validation loss:3.1997
+2025-04-27 19:17:47,223 - [*] loss:31.3884
+2025-04-27 19:17:47,232 - [*] year 0, testing
+2025-04-27 19:17:47,307 - T:3	MAE	5.5627	RMSE	5.7136	MAPE	14.8885
+2025-04-27 19:17:47,458 - T:6	MAE	5.1524	RMSE	5.3795	MAPE	13.7554
+2025-04-27 19:17:47,883 - T:12	MAE	5.2807	RMSE	5.6082	MAPE	14.0355
+2025-04-27 19:17:47,884 - T:Avg	MAE	5.3435	RMSE	5.5668	MAPE	14.2532
+2025-04-27 19:17:47,884 - Finished optimization, total time:7.48 s, best model:log/ENERGY-Wind/stadapter_st-100/0/2.8706.pkl
+2025-04-27 19:17:47,892 - [*] Year 1 load from data/ENERGY-Wind/FastData/1.npz
+2025-04-27 19:17:48,078 - [*] Year 1 Dataset load!
+2025-04-27 19:17:48,080 - [*] load from log/ENERGY-Wind/stadapter_st-100/0/2.8706.pkl
+2025-04-27 19:17:48,089 - ST-Adapter initialized with backbone stgnn
+2025-04-27 19:17:48,089 - Adapter bottleneck ratio: 1/8
+2025-04-27 19:17:48,091 - [*] Year 1 Training start
+2025-04-27 19:17:48,630 - node number torch.Size([14464, 12])
+2025-04-27 19:17:49,928 - epoch:0, training loss:22.6248 validation loss:1.8417
+2025-04-27 19:17:51,713 - epoch:1, training loss:2.5128 validation loss:1.0478
+2025-04-27 19:17:53,482 - epoch:2, training loss:2.0023 validation loss:1.0695
+2025-04-27 19:17:55,257 - epoch:3, training loss:1.9400 validation loss:1.0423
+2025-04-27 19:17:56,981 - epoch:4, training loss:1.9057 validation loss:0.9661
+2025-04-27 19:17:58,754 - epoch:5, training loss:1.8774 validation loss:0.9779
+2025-04-27 19:18:00,556 - epoch:6, training loss:1.8250 validation loss:0.9956
+2025-04-27 19:18:02,295 - epoch:7, training loss:1.7878 validation loss:0.9770
+2025-04-27 19:18:04,056 - epoch:8, training loss:1.7786 validation loss:0.9372
+2025-04-27 19:18:05,730 - epoch:9, training loss:1.7732 validation loss:1.0108
+2025-04-27 19:18:07,504 - epoch:10, training loss:1.7571 validation loss:0.9330
+2025-04-27 19:18:09,109 - epoch:11, training loss:1.7838 validation loss:1.0850
+2025-04-27 19:18:10,810 - epoch:12, training loss:1.7477 validation loss:0.9212
+2025-04-27 19:18:12,525 - epoch:13, training loss:1.7485 validation loss:1.0363
+2025-04-27 19:18:14,283 - epoch:14, training loss:1.6909 validation loss:1.0311
+2025-04-27 19:18:15,958 - epoch:15, training loss:1.7345 validation loss:1.0302
+2025-04-27 19:18:17,646 - epoch:16, training loss:1.6727 validation loss:0.9084
+2025-04-27 19:18:19,415 - epoch:17, training loss:1.7198 validation loss:0.9730
+2025-04-27 19:18:21,137 - epoch:18, training loss:1.6954 validation loss:0.8435
+2025-04-27 19:18:22,812 - epoch:19, training loss:1.7170 validation loss:0.8426
+2025-04-27 19:18:24,404 - epoch:20, training loss:1.6567 validation loss:0.8925
+2025-04-27 19:18:26,150 - epoch:21, training loss:1.7121 validation loss:0.8461
+2025-04-27 19:18:27,940 - epoch:22, training loss:1.7263 validation loss:1.1040
+2025-04-27 19:18:29,785 - epoch:23, training loss:1.6643 validation loss:0.8484
+2025-04-27 19:18:31,535 - epoch:24, training loss:1.6466 validation loss:1.0057
+2025-04-27 19:18:33,182 - epoch:25, training loss:1.7634 validation loss:0.9507
+2025-04-27 19:18:33,850 - [*] loss:5.0236
+2025-04-27 19:18:33,859 - [*] year 1, testing
+2025-04-27 19:18:33,923 - T:3	MAE	1.9904	RMSE	2.0912	MAPE	5.5361
+2025-04-27 19:18:34,015 - T:6	MAE	1.9560	RMSE	2.1133	MAPE	5.4724
+2025-04-27 19:18:34,342 - T:12	MAE	1.9763	RMSE	2.2449	MAPE	5.5936
+2025-04-27 19:18:34,342 - T:Avg	MAE	1.9676	RMSE	2.1354	MAPE	5.5118
+2025-04-27 19:18:34,342 - Finished optimization, total time:27.79 s, best model:log/ENERGY-Wind/stadapter_st-100/1/0.8426.pkl
+2025-04-27 19:18:34,354 - [*] Year 2 load from data/ENERGY-Wind/FastData/2.npz
+2025-04-27 19:18:34,555 - [*] Year 2 Dataset load!
+2025-04-27 19:18:34,557 - [*] load from log/ENERGY-Wind/stadapter_st-100/1/0.8426.pkl
+2025-04-27 19:18:34,568 - ST-Adapter initialized with backbone stgnn
+2025-04-27 19:18:34,568 - Adapter bottleneck ratio: 1/8
+2025-04-27 19:18:34,571 - [*] Year 2 Training start
+2025-04-27 19:18:35,254 - node number torch.Size([15616, 12])
+2025-04-27 19:18:36,440 - epoch:0, training loss:10.3483 validation loss:7.5637
+2025-04-27 19:18:38,190 - epoch:1, training loss:1.9275 validation loss:8.3116
+2025-04-27 19:18:39,993 - epoch:2, training loss:1.7987 validation loss:8.3755
+2025-04-27 19:18:41,740 - epoch:3, training loss:1.7419 validation loss:8.2744
+2025-04-27 19:18:43,539 - epoch:4, training loss:1.7504 validation loss:8.3080
+2025-04-27 19:18:45,305 - epoch:5, training loss:1.7229 validation loss:8.1306
+2025-04-27 19:18:47,130 - epoch:6, training loss:1.6873 validation loss:8.0890
+2025-04-27 19:18:47,805 - [*] loss:57.6467
+2025-04-27 19:18:47,815 - [*] year 2, testing
+2025-04-27 19:18:47,886 - T:3	MAE	7.3956	RMSE	7.4870	MAPE	32.6405
+2025-04-27 19:18:47,987 - T:6	MAE	7.4749	RMSE	7.5900	MAPE	33.0813
+2025-04-27 19:18:48,339 - T:12	MAE	7.4532	RMSE	7.6221	MAPE	33.1648
+2025-04-27 19:18:48,340 - T:Avg	MAE	7.4563	RMSE	7.5769	MAPE	33.0172
+2025-04-27 19:18:48,340 - Finished optimization, total time:7.68 s, best model:log/ENERGY-Wind/stadapter_st-100/2/7.5637.pkl
+2025-04-27 19:18:48,351 - [*] Year 3 load from data/ENERGY-Wind/FastData/3.npz
+2025-04-27 19:18:48,562 - [*] Year 3 Dataset load!
+2025-04-27 19:18:48,563 - [*] load from log/ENERGY-Wind/stadapter_st-100/2/7.5637.pkl
+2025-04-27 19:18:48,573 - ST-Adapter initialized with backbone stgnn
+2025-04-27 19:18:48,573 - Adapter bottleneck ratio: 1/8
+2025-04-27 19:18:48,576 - [*] Year 3 Training start
+2025-04-27 19:18:49,184 - node number torch.Size([17152, 12])
+2025-04-27 19:18:50,455 - epoch:0, training loss:18.3247 validation loss:6.9700
+2025-04-27 19:18:52,363 - epoch:1, training loss:2.1548 validation loss:6.7345
+2025-04-27 19:18:54,084 - epoch:2, training loss:2.0005 validation loss:6.6925
+2025-04-27 19:18:55,889 - epoch:3, training loss:1.9450 validation loss:6.6608
+2025-04-27 19:18:57,662 - epoch:4, training loss:1.9142 validation loss:6.5363
+2025-04-27 19:18:59,575 - epoch:5, training loss:1.8903 validation loss:6.5981
+2025-04-27 19:19:01,371 - epoch:6, training loss:1.8724 validation loss:6.6772
+2025-04-27 19:19:03,231 - epoch:7, training loss:1.8660 validation loss:6.5552
+2025-04-27 19:19:05,030 - epoch:8, training loss:1.8709 validation loss:6.5380
+2025-04-27 19:19:06,836 - epoch:9, training loss:1.8307 validation loss:6.7681
+2025-04-27 19:19:08,572 - epoch:10, training loss:1.8542 validation loss:6.6360
+2025-04-27 19:19:09,266 - [*] loss:55.7398
+2025-04-27 19:19:09,276 - [*] year 3, testing
+2025-04-27 19:19:09,349 - T:3	MAE	7.1740	RMSE	7.3552	MAPE	159.9211
+2025-04-27 19:19:09,468 - T:6	MAE	7.1592	RMSE	7.4040	MAPE	161.9817
+2025-04-27 19:19:09,845 - T:12	MAE	7.1281	RMSE	7.5072	MAPE	166.1226
+2025-04-27 19:19:09,845 - T:Avg	MAE	7.1494	RMSE	7.4079	MAPE	162.1211
+2025-04-27 19:19:09,845 - Finished optimization, total time:12.41 s, best model:log/ENERGY-Wind/stadapter_st-100/3/6.5363.pkl
+2025-04-27 19:19:09,847 - 
+
+
+2025-04-27 19:19:09,847 - 3   	 MAE	      5.56	      1.99	      7.40	      7.17		    5.53
+2025-04-27 19:19:09,847 - 3   	RMSE	      5.71	      2.09	      7.49	      7.36		    5.66
+2025-04-27 19:19:09,848 - 3   	MAPE	     14.89	      5.54	     32.64	    159.92		   53.25
+2025-04-27 19:19:09,848 - 6   	 MAE	      5.15	      1.96	      7.47	      7.16		    5.44
+2025-04-27 19:19:09,848 - 6   	RMSE	      5.38	      2.11	      7.59	      7.40		    5.62
+2025-04-27 19:19:09,848 - 6   	MAPE	     13.76	      5.47	     33.08	    161.98		   53.57
+2025-04-27 19:19:09,848 - 12  	 MAE	      5.28	      1.98	      7.45	      7.13		    5.46
+2025-04-27 19:19:09,848 - 12  	RMSE	      5.61	      2.24	      7.62	      7.51		    5.75
+2025-04-27 19:19:09,848 - 12  	MAPE	     14.04	      5.59	     33.16	    166.12		   54.73
+2025-04-27 19:19:09,848 - Avg 	 MAE	      5.34	      1.97	      7.46	      7.15		    5.48
+2025-04-27 19:19:09,848 - Avg 	RMSE	      5.57	      2.14	      7.58	      7.41		    5.67
+2025-04-27 19:19:09,848 - Avg 	MAPE	     14.25	      5.51	     33.02	    162.12		   53.73
+2025-04-27 19:19:09,848 - year	0   	total_time	    7.4752	average_time	    1.0679	epoch	7
+2025-04-27 19:19:09,848 - year	1   	total_time	   27.7860	average_time	    1.0687	epoch	26
+2025-04-27 19:19:09,848 - year	2   	total_time	    7.6787	average_time	    1.0970	epoch	7
+2025-04-27 19:19:09,848 - year	3   	total_time	   12.4111	average_time	    1.1283	epoch	11
+2025-04-27 19:19:09,848 - total time: 55.3509

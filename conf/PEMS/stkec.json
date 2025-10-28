@@ -1,0 +1,69 @@
+{
+    "begin_year": 2011,
+    "end_year": 2017,
+    "dropout": 0.0,
+    "lr":  0.03,
+    "batch_size": 128,
+    "epoch": 100,
+    "gpuid": 1,
+    "loss": "mse",
+    "activation": "relu",
+    "scheduler": "epo",
+    "y_len": 12,
+    "x_len": 12,
+    "influe_length": 168,
+    "data_process": 0,
+    "batch_influ_size":4,
+    "beita": 1,
+    "cluster": 24,
+    "raw_data_path": "data/PEMS/RawData/",
+    "save_data_path": "data/PEMS/FastData/",
+    "graph_path": "data/PEMS/graph/",
+    "model_path": "log/PEMS/",
+    "influence_path":"Please enter 'outdir' in your path",
+    "gcn":{
+        "in_channel": 12,
+        "out_channel": 12,
+        "hidden_channel": 64
+    },
+
+    "tcn":{
+        "in_channel": 1,
+        "out_channel": 1,
+        "kernel_size": 3,
+        "dilation": 1
+    },
+
+    
+  
+    "init": true,
+    "train": 1,
+    "auto_test": 0,
+
+    "strategy": "incremental",
+    "increase": true,
+    "num_hops": 2,
+    
+    "detect": true,
+    "detect_strategy": "feature",
+
+    "detect_infl_strategy": true,
+    "infl_topk": 10,
+
+    "adp_adj": false,
+    "skip_dim": 64,
+    "end_dim": 64,
+    "hidden_channels": 32,
+    "dilation_channels": 64,
+    "residual_channels": 64,
+    "input_dim": 1,
+    "output_dim": 1,
+
+    "ewc": true,
+    "ewc_strategy": "ewc", 
+    "ewc_lambda":0.0005,
+
+    "replay": true,
+    "replay_strategy": "random",
+    "repaly_num_samples": 100
+}

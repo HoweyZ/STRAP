@@ -1,0 +1,53 @@
+{
+    "begin_year": 0,
+    "end_year": 3,
+    "dropout": 0.0,
+    "lr": 0.03,
+    "batch_size": 128,
+    "epoch": 100,
+    "gpuid": 1,
+    "loss": "mse",
+    "activation": "relu",
+    "scheduler": "epo",
+    "y_len": 12,
+    "x_len": 12,
+    "data_process": 0,
+    
+    "raw_data_path": "data/ENERGY-Wind/RawData/",
+    "save_data_path": "data/ENERGY-Wind/FastData/",
+    "graph_path": "data/ENERGY-Wind/graph/",
+    "model_path": "log/ENERGY-Wind/",
+    "gcn":{
+        "in_channel": 12,
+        "out_channel": 12,
+        "hidden_channel": 64
+    },
+
+    "tcn":{
+        "in_channel": 1,
+        "out_channel": 1,
+        "kernel_size": 3,
+        "dilation": 1
+    },
+
+    "method": "TrafficStream",
+
+    "init": true,
+    "train": 1,
+    "auto_test": 0,
+    
+
+    "strategy": "incremental",
+    "increase": true,
+    "num_hops": 2,
+    
+    "detect": false,
+    "detect_strategy": "feature",
+
+    "ewc": false,
+    "ewc_strategy": "ewc", 
+    "ewc_lambda": 0.0001,
+    
+    "replay": true,
+    "replay_strategy": "inforeplay"
+}

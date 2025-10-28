@@ -1,0 +1,53 @@
+2025-04-27 22:28:24,695 - logger name:log/ENERGY-Wind/pre_st-24/pre_st.log
+2025-04-27 22:28:24,696 - params : {'conf': 'conf/ENERGY-Wind/pre.json', 'seed': 24, 'paral': 0, 'backbone_type': 'stgnn', 'gpuid': 2, 'logname': 'pre_st', 'method': 'TrafficStream', 'load_first_year': 1, 'first_year_model_path': 'log/ENERGY-Wind/retrain_st-24/0/3.0127.pkl', 'device': device(type='cuda', index=2), 'methods': {'PECPM': <class 'src.model.model.PECPM_Model'>, 'ST-Adapter': <class 'src.model.model.STAdapter_Model'>, 'GraphPro': <class 'src.model.model.GraphPro_Model'>, 'RAGraph': <class 'src.model.model.RAGraph_Model'>, 'STGNN_Model': <class 'src.model.model.STGNN_Model'>, 'ASTGNN_Model': <class 'src.model.model.ASTGNN_Model'>, 'DCRNN_Model': <class 'src.model.model.DCRNN_Model'>, 'TGCN_Model': <class 'src.model.model.TGCN_Model'>, 'STLoRA': <class 'src.model.model.STLora_Model'>, 'RAP': <class 'src.model.model.RAP_Model'>, 'TrafficStream': <class 'src.model.model.TrafficStream_Model'>, 'STKEC': <class 'src.model.model.STKEC_Model'>, 'EAC': <class 'src.model.model.EAC_Model'>}, 'begin_year': 0, 'end_year': 3, 'dropout': 0, 'lr': 0.03, 'batch_size': 128, 'epoch': 100, 'loss': 'mse', 'activation': 'relu', 'scheduler': 'epo', 'y_len': 12, 'x_len': 12, 'data_process': 0, 'raw_data_path': 'data/ENERGY-Wind/RawData/', 'save_data_path': 'data/ENERGY-Wind/FastData/', 'graph_path': 'data/ENERGY-Wind/graph/', 'model_path': 'log/ENERGY-Wind/', 'gcn': {'in_channel': 12, 'out_channel': 12, 'hidden_channel': 64}, 'tcn': {'in_channel': 1, 'out_channel': 1, 'kernel_size': 3, 'dilation': 1}, 'init': False, 'train': 0, 'auto_test': 1, 'strategy': 'pretrain', 'detect': False, 'ewc': False, 'replay': False, 'path': 'log/ENERGY-Wind/pre_st-24', 'logger': <Logger utils.initialize (INFO)>}
+2025-04-27 22:28:24,746 - [*] Year 0 load from data/ENERGY-Wind/FastData/0.npz
+2025-04-27 22:28:25,103 - [*] load from log/ENERGY-Wind/retrain_st-24/0/3.0127.pkl
+2025-04-27 22:28:26,358 - [*] loss:32.8293
+2025-04-27 22:28:26,368 - [*] year 0, testing
+2025-04-27 22:28:26,438 - T:3	MAE	5.5025	RMSE	5.6020	MAPE	14.8563
+2025-04-27 22:28:26,571 - T:6	MAE	5.5199	RMSE	5.6570	MAPE	14.9031
+2025-04-27 22:28:26,981 - T:12	MAE	5.5156	RMSE	5.7379	MAPE	14.8488
+2025-04-27 22:28:26,982 - T:Avg	MAE	5.5145	RMSE	5.6609	MAPE	14.8820
+2025-04-27 22:28:27,008 - [*] Year 1 load from data/ENERGY-Wind/FastData/1.npz
+2025-04-27 22:28:27,010 - [*] load from log/ENERGY-Wind/retrain_st-24/0/3.0127.pkl
+2025-04-27 22:28:27,643 - [*] loss:20.3058
+2025-04-27 22:28:27,653 - [*] year 1, testing
+2025-04-27 22:28:27,713 - T:3	MAE	3.9775	RMSE	4.2551	MAPE	11.4653
+2025-04-27 22:28:27,808 - T:6	MAE	3.9936	RMSE	4.3257	MAPE	11.5093
+2025-04-27 22:28:28,131 - T:12	MAE	4.0045	RMSE	4.4481	MAPE	11.4900
+2025-04-27 22:28:28,131 - T:Avg	MAE	3.9917	RMSE	4.3375	MAPE	11.4959
+2025-04-27 22:28:28,131 - [*] No increasing nodes at year 1, store model of the last year.
+2025-04-27 22:28:28,158 - [*] Year 2 load from data/ENERGY-Wind/FastData/2.npz
+2025-04-27 22:28:28,159 - [*] load from log/ENERGY-Wind/retrain_st-24/0/3.0127.pkl
+2025-04-27 22:28:28,831 - [*] loss:99.4910
+2025-04-27 22:28:28,845 - [*] year 2, testing
+2025-04-27 22:28:28,909 - T:3	MAE	9.7813	RMSE	9.9255	MAPE	42.9258
+2025-04-27 22:28:29,013 - T:6	MAE	9.7665	RMSE	9.9391	MAPE	42.8918
+2025-04-27 22:28:29,406 - T:12	MAE	9.7859	RMSE	10.0133	MAPE	43.1276
+2025-04-27 22:28:29,406 - T:Avg	MAE	9.7737	RMSE	9.9523	MAPE	42.9397
+2025-04-27 22:28:29,406 - [*] No increasing nodes at year 2, store model of the last year.
+2025-04-27 22:28:29,439 - [*] Year 3 load from data/ENERGY-Wind/FastData/3.npz
+2025-04-27 22:28:29,442 - [*] load from log/ENERGY-Wind/retrain_st-24/0/3.0127.pkl
+2025-04-27 22:28:30,236 - [*] loss:546.1401
+2025-04-27 22:28:30,248 - [*] year 3, testing
+2025-04-27 22:28:30,327 - T:3	MAE	23.2776	RMSE	23.3329	MAPE	603.4615
+2025-04-27 22:28:30,444 - T:6	MAE	23.2518	RMSE	23.3292	MAPE	603.9399
+2025-04-27 22:28:30,855 - T:12	MAE	23.2635	RMSE	23.3878	MAPE	608.1330
+2025-04-27 22:28:30,856 - T:Avg	MAE	23.2596	RMSE	23.3419	MAPE	604.4192
+2025-04-27 22:28:30,856 - [*] No increasing nodes at year 3, store model of the last year.
+2025-04-27 22:28:30,856 - 
+
+
+2025-04-27 22:28:30,856 - 3   	 MAE	      5.50	      3.98	      9.78	     23.28		   10.63
+2025-04-27 22:28:30,856 - 3   	RMSE	      5.60	      4.26	      9.93	     23.33		   10.78
+2025-04-27 22:28:30,856 - 3   	MAPE	     14.86	     11.47	     42.93	    603.46		  168.18
+2025-04-27 22:28:30,856 - 6   	 MAE	      5.52	      3.99	      9.77	     23.25		   10.63
+2025-04-27 22:28:30,856 - 6   	RMSE	      5.66	      4.33	      9.94	     23.33		   10.81
+2025-04-27 22:28:30,856 - 6   	MAPE	     14.90	     11.51	     42.89	    603.94		  168.31
+2025-04-27 22:28:30,856 - 12  	 MAE	      5.52	      4.00	      9.79	     23.26		   10.64
+2025-04-27 22:28:30,856 - 12  	RMSE	      5.74	      4.45	     10.01	     23.39		   10.90
+2025-04-27 22:28:30,857 - 12  	MAPE	     14.85	     11.49	     43.13	    608.13		  169.40
+2025-04-27 22:28:30,857 - Avg 	 MAE	      5.51	      3.99	      9.77	     23.26		   10.63
+2025-04-27 22:28:30,857 - Avg 	RMSE	      5.66	      4.34	      9.95	     23.34		   10.82
+2025-04-27 22:28:30,857 - Avg 	MAPE	     14.88	     11.50	     42.94	    604.42		  168.43
+2025-04-27 22:28:30,857 - total time: 0.0000

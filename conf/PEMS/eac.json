@@ -1,0 +1,46 @@
+{
+    "begin_year": 2011,
+    "end_year": 2017,
+    "dropout": 0,
+    "lr": 0.03,
+    "batch_size": 128,
+    "epoch": 100,
+    "gpuid": 1,
+    "loss": "mse",
+    "activation": "relu",
+    "scheduler": "epo",
+    "y_len": 12,
+    "x_len": 12,
+    "data_process": 0,
+    "raw_data_path": "data/PEMS/RawData/",
+    "save_data_path": "data/PEMS/FastData/",
+    "graph_path": "data/PEMS/graph/",
+    "model_path": "log/PEMS/",
+    "gcn":{
+        "in_channel": 12,
+        "out_channel": 12,
+        "hidden_channel": 64
+    },
+
+    "tcn":{
+        "in_channel": 1,
+        "out_channel": 1,
+        "kernel_size": 3,
+        "dilation": 1
+    },
+    
+    "method": "EAC",
+   
+    "rank": 6,
+    "init": true,
+    "train": 1,
+    "auto_test": 0,
+
+    "strategy": "retrain",
+
+    "detect": false,
+
+    "ewc": false,
+    
+    "replay": false
+}

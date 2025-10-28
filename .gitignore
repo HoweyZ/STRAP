@@ -1,0 +1,22 @@
+*.csv
+*.pdf
+data/
+
+# 忽略所有 `.log` 文件
+tmp.*
+repo.tar.gz
+*.backup
+
+# 忽略所有路径下的 Python 缓存文件
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+.env
+
+checkpoints/
+experiments/
+archive/
+
+
+*.pkl
