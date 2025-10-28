@@ -525,9 +525,7 @@ class STRAP(nn.Module):
             adj_tensor = adj.float()
             
         n_nodes = adj_tensor.shape[0]
-        
-        if len(node_features.shape) < 2:
-            raise ValueError("节点特征至少需要2个维度 [节点, 特征]")
+    
             
         batch_size = 1
         if len(node_features.shape) > 2:
