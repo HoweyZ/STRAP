@@ -21,6 +21,7 @@
 - [🚀 Getting Started](#-getting-started)
 - [🙏 Acknowledgements](#-acknowledgements)
 - [📝 Citation](#-citation)
+- [🌟 Star History](#-star-history)
 
 ---
 
@@ -109,7 +110,11 @@ If you find this work useful for your research, please consider citing our paper
 ```
 ---
 
+## 🌟 Star History
 
+[![Star History Chart](https://api.star-history.com/svg?repos=HoweyZ/STRAP&type=Date)](https://star-history.com/#HoweyZ/STRAP&Date)
+
+---
 
 
 
