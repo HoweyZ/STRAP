@@ -1637,6 +1637,18 @@ class RAP_Model(nn.Module):
         if self.use_strap:
             strap_params = sum(p.numel() for p in self.strap.parameters() if p.requires_grad)
             log_fn(f"strap Parameters: {strap_params}")
+
+    def load_state_dict(self, state_dict, strict=True):
+        """Backward-compatible loading for older STRAP checkpoints.
+
+        Older checkpoints may contain a lazily-created projector buffer
+        (`strap.projector.weight`). The simplified STRAP keeps projector as
+        runtime-initialized state, so we safely drop this key when loading.
+        """
+        if isinstance(state_dict, dict) and "strap.projector.weight" in state_dict:
+            state_dict = dict(state_dict)
+            state_dict.pop("strap.projector.weight", None)
+        return super().load_state_dict(state_dict, strict=strict)
     
     def initialize_patterns(self, data, adj, force=False):
         if not self.use_strap:
