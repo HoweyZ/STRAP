@@ -1,18 +1,6 @@
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import networkx as nx
-import os
-import pickle
-import json
-from datetime import datetime
-from collections import Counter
-import scipy.sparse as sp
-from scipy import signal
-import pywt 
-from annoy import AnnoyIndex
+"""Compatibility shim: STRAP implementation moved to model.py."""
 
+from model.model import STRAP, PatternLibraryManager, FormanRicciCurvature, RandomProjection
 
 class STRAP(nn.Module):
     def __init__(self, args):
@@ -1731,3 +1719,4 @@ class RandomProjection:
         
         projected = np.dot(vectors, self.projection_matrix) / self.normalization
         return projected
+__all__ = ["STRAP", "PatternLibraryManager", "FormanRicciCurvature", "RandomProjection"]
