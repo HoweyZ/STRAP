@@ -1,16 +1,8 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.gcn_conv import BatchGCNConv, ChebGraphConv
-from scipy.sparse.linalg import eigs
-import os
-from sklearn.neighbors import NearestNeighbors
-from scipy.spatial import cKDTree
-from torch.nn.utils.rnn import pad_sequence
-import time
-import math
-import pickle
+from .gcn_conv import BatchGCNConv, ChebGraphConv
+from .STRAP import STRAP
 
 
 # -----------------------------------------------
@@ -234,6 +226,14 @@ class TGCN_Backbone(nn.Module):
 # -----------------------------------------------
 # backbone_base
 # -----------------------------------------------
+
+BACKBONES = {
+    "stgnn": STGNN_Backbone,
+    "dcrnn": DCRNN_Backbone,
+    "astgnn": ASTGNN_Backbone,
+    "tgcn": TGCN_Backbone,
+}
+
 
 class STGNN_Model(nn.Module):
  
@@ -534,7 +534,7 @@ class LoRALayer(nn.Module):
         self.scaling = 1 / (r * in_dim)
 
     def forward(self, x):
-        return x + self.scaling * torch.matmul(torch.matmul(x, self.lora_a.to(x.device)), self.lora_b.to(x.device))
+        return x + self.scaling * torch.matmul(torch.matmul(x, self.lora_a), self.lora_b)
     
 # -----------------------------------------------
 # Adapter layer
@@ -587,14 +587,7 @@ class GraphPro_Model(nn.Module):
         
        
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else: 
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
        
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -955,25 +948,13 @@ class PECPM_Model(nn.Module):
         self.dropout = args.dropout
         
         
-        if not hasattr(args, "attention_weight"):
-            self.top_k = 5  
-        elif isinstance(args.attention_weight, dict):
-            self.top_k = 5  
-        else:
-            self.top_k = args.attention_weight
-        
-       
-        self.historical_patterns = None
+        self.attention_weight = getattr(args, "attention_weight", 5)
+        self.top_k = 5 if isinstance(self.attention_weight, dict) else self.attention_weight
+
+        self.register_buffer("historical_patterns", None, persistent=False)
         
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else:  
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
         self.activation = nn.GELU()
@@ -989,37 +970,22 @@ class PECPM_Model(nn.Module):
         self.args.logger.info(f"Total Parameters: {total_params}")
         self.args.logger.info(f"Trainable Parameters: {trainable_params}")
 
+    @torch.no_grad()
     def pattern_matching(self, current_features):
-    
+        current = F.normalize(current_features, dim=1)
         if self.historical_patterns is None:
-            self.historical_patterns = current_features.detach().cpu()
-            return torch.ones(current_features.size(0), 1, device=current_features.device)
-        
-        if hasattr(self.args, "attention_weight") and isinstance(self.args.attention_weight, dict):
+            self.historical_patterns = current
+            return current.new_ones(current.size(0), 1)
+
+        if isinstance(self.attention_weight, dict):
             year_offset = str(self.args.year - self.args.begin_year)
-            self.top_k = self.args.attention_weight.get(year_offset, 5)
-        
-        current_cpu = current_features.detach().cpu()
-        
-        current_norm = torch.nn.functional.normalize(current_cpu, p=2, dim=1)
-        history_norm = torch.nn.functional.normalize(self.historical_patterns, p=2, dim=1)
-        
-        similarity = torch.mm(current_norm, history_norm.t())
-        
-    
-        topk_values, _ = similarity.topk(min(self.top_k, similarity.size(1)), dim=1)
-        
-      
-        pattern_scores = topk_values.mean(dim=1).unsqueeze(1).to(current_features.device)
-        
-        
-        self.historical_patterns = torch.cat([self.historical_patterns, current_cpu], dim=0)
-        
-        max_patterns = 1000 
-        if self.historical_patterns.size(0) > max_patterns:
-            self.historical_patterns = self.historical_patterns[-max_patterns:]
-        
-        return pattern_scores
+            self.top_k = self.attention_weight[year_offset]
+
+        similarity = current @ self.historical_patterns.t()
+        topk_values = similarity.topk(min(self.top_k, similarity.size(1)), dim=1).values
+        scores = topk_values.mean(dim=1, keepdim=True)
+        self.historical_patterns = torch.cat([self.historical_patterns, current])[-1000:]
+        return scores
 
     def forward(self, data, adj):
         N = adj.shape[0]
@@ -1061,14 +1027,7 @@ class STAdapter_Model(nn.Module):
         self.dropout = getattr(args, "dropout", 0.1)
         
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else: 
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
        
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -1134,9 +1093,9 @@ class STAdapter_Model(nn.Module):
             dropout_rate=self.dropout
         )
         
-        self.input_adapters.append(input_adapter)
-        self.hidden_adapters.append(hidden_adapter)
-        self.output_adapters.append(output_adapter)
+        self.input_adapters.append(input_adapter.to(self.fc.weight))
+        self.hidden_adapters.append(hidden_adapter.to(self.fc.weight))
+        self.output_adapters.append(output_adapter.to(self.fc.weight))
         
         self._freeze_previous_adapters()
     
@@ -1168,114 +1127,17 @@ class STAdapter_Model(nn.Module):
         return x
 
     def forward(self, data, adj):
-
-        N = adj.shape[0]
-        
-        x_original = data.x.reshape((-1, N, self.args.gcn["in_channel"]))
-        bs = x_original.shape[0]
-        
-        x_flat = x_original.reshape(-1, self.args.gcn["in_channel"])
-        x_flat = self._apply_adapters(x_flat, self.input_adapters)
-        x = x_flat.reshape(bs, N, -1)
-        
-        hidden_features = None
-        
-        def hook_fn(module, input, output):
-            nonlocal hidden_features
-            if isinstance(output, tuple):
-                output = output[0]  
-            
-            if len(output.shape) == 3:  # [bs, N, hidden]
-                hidden_features = output
-            else:  
-                try:
-                    hidden_features = output.reshape(bs, N, -1)
-                except:
-
-                    hidden_features = output
-        
-
-        hook_module = None
-        for name, module in self.backbone.named_modules():
-            if "gcn" in name.lower() or isinstance(module, BatchGCNConv):
-                hook_module = module
-                break
-        
-        hook_handle = None
-        if hook_module:
-            hook_handle = hook_module.register_forward_hook(hook_fn)
-        
-        output_features = self.backbone(x, adj)
-        
-        if hook_handle:
-            hook_handle.remove()
-        
-        if hidden_features is not None:
-            hidden_flat = hidden_features.reshape(-1, hidden_features.shape[-1])
-            if hidden_flat.shape[-1] == self.args.gcn["hidden_channel"]:
-                hidden_flat = self._apply_adapters(hidden_flat, self.hidden_adapters)
-        
-        output_features = output_features.reshape(-1, self.args.gcn["out_channel"])
-        
-        output_features = self._apply_adapters(output_features, self.output_adapters)
-        
-        x = output_features + data.x
-        
-        x = self.fc(self.activation(x))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        
-        return x
+        x = self.fc(self.activation(self.feature(data, adj)))
+        return F.dropout(x, p=self.dropout, training=self.training)
 
     def feature(self, data, adj):
-        N = adj.shape[0]
-        
-        x_original = data.x.reshape((-1, N, self.args.gcn["in_channel"]))
-        bs = x_original.shape[0]
-        
-        x_flat = x_original.reshape(-1, self.args.gcn["in_channel"])
-        x_flat = self._apply_adapters(x_flat, self.input_adapters)
-        x = x_flat.reshape(bs, N, -1)
-        
-        hidden_features = None
-        
-        def hook_fn(module, input, output):
-            nonlocal hidden_features
-            if isinstance(output, tuple):
-                output = output[0]
-            
-            if len(output.shape) == 3:
-                hidden_features = output
-            else:
-                try:
-                    hidden_features = output.reshape(bs, N, -1)
-                except:
-                    hidden_features = output
-        
-        hook_module = None
-        for name, module in self.backbone.named_modules():
-            if "gcn" in name.lower() or isinstance(module, BatchGCNConv):
-                hook_module = module
-                break
-        
-        hook_handle = None
-        if hook_module:
-            hook_handle = hook_module.register_forward_hook(hook_fn)
-        
-        output_features = self.backbone(x, adj)
-        
-        if hook_handle:
-            hook_handle.remove()
-        
-        if hidden_features is not None:
-            hidden_flat = hidden_features.reshape(-1, hidden_features.shape[-1])
-            if hidden_flat.shape[-1] == self.args.gcn["hidden_channel"]:
-                hidden_flat = self._apply_adapters(hidden_flat, self.hidden_adapters)
-        
-        output_features = output_features.reshape(-1, self.args.gcn["out_channel"])
-        output_features = self._apply_adapters(output_features, self.output_adapters)
-        
-        return output_features + data.x
-    
+        n_nodes = adj.shape[0]
+        x = self._apply_adapters(data.x, self.input_adapters)
+        x = x.reshape(-1, n_nodes, self.args.gcn["in_channel"])
+        x = self.backbone(x, adj).reshape(-1, self.args.gcn["out_channel"])
+        return self._apply_adapters(x, self.output_adapters) + data.x
+
+
 class STLora_Model(nn.Module):
  
     def __init__(self, args):
@@ -1285,14 +1147,7 @@ class STLora_Model(nn.Module):
         
         
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else:  
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
        
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -1313,9 +1168,8 @@ class STLora_Model(nn.Module):
         self.args.logger.info(f"Trainable Parameters: {trainable_params}")
     
     def add_lora_layer(self):
-        in_dim = self.args.gcn["hidden_channel"]
-        out_dim = self.args.gcn["hidden_channel"]
-        lora_layer = LoRALayer(in_dim, out_dim)
+        out_dim = self.args.gcn["out_channel"]
+        lora_layer = LoRALayer(out_dim, out_dim).to(self.fc.weight)
         self.lora_layers.append(lora_layer)
         self.freeze_lora_layers()  
     
@@ -1380,14 +1234,7 @@ class EAC_Model(nn.Module):
         
        
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else:  
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
         
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -1452,14 +1299,7 @@ class TrafficStream_Model(nn.Module):
         self.dropout = args.dropout
         
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        elif backbone_type == "stgnn":
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
  
             
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -1511,14 +1351,7 @@ class STKEC_Model(nn.Module):
         
     
         backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else:  
-            self.backbone = STGNN_Backbone(args)
+        self.backbone = BACKBONES[backbone_type](args)
         
 
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
@@ -1582,404 +1415,63 @@ class STKEC_Model(nn.Module):
         return x
 
 class RAP_Model(nn.Module):
-    
     def __init__(self, args):
-        super(RAP_Model, self).__init__()
+        super().__init__()
         self.args = args
         self.dropout = args.dropout
-        
-        backbone_type = getattr(args, "backbone_type", "stgnn")
-        if backbone_type == "dcrnn":
-            self.backbone = DCRNN_Backbone(args)
-        elif backbone_type == "astgnn":
-            self.backbone = ASTGNN_Backbone(args)
-        elif backbone_type == "tgcn":
-            self.backbone = TGCN_Backbone(args)
-        else:  
-            self.backbone = STGNN_Backbone(args)
-        
+        self.backbone = BACKBONES[getattr(args, "backbone_type", "stgnn")](args)
         self.fc = nn.Linear(args.gcn["out_channel"], args.y_len)
         self.activation = nn.GELU()
-
         self.use_strap = getattr(args, "use_strap", True)
+        self.current_year = args.year
         if self.use_strap:
             self.strap = STRAP(args)
-            
-            if hasattr(args, 'path'):
-                self.pattern_dir = os.path.join(args.path, "pattern_libraries")
-                os.makedirs(self.pattern_dir, exist_ok=True)
-                
-
             self.strap_adapter = nn.Linear(args.gcn["out_channel"], self.strap.feature_dim)
-            
-            setattr(args, 'return_pattern_or_value', 'value')
-        
-        self.current_year = getattr(args, "year", None)
-        self.pattern_initialized = False
-        
-        self.logger = getattr(args, "logger", None)
-        if self.logger:
-            msg = f"RAP initialized with backbone {backbone_type} and year {self.current_year}"
-            self.logger.info(msg)
-        else:
-            print(f"RAP initialized with backbone {backbone_type} and year {self.current_year}")
-    
-    
-        
+
+    @property
+    def pattern_initialized(self):
+        return self.use_strap and self.strap.current_year == self.current_year
+
     def count_parameters(self):
-        total_params = sum(p.numel() for p in self.parameters())
-        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        
-        log_fn = self.args.logger.info if hasattr(self.args, 'logger') else print
-        log_fn(f"Total Parameters: {total_params}")
-        log_fn(f"Trainable Parameters: {trainable_params}")
-        
-        if self.use_strap:
-            strap_params = sum(p.numel() for p in self.strap.parameters() if p.requires_grad)
-            log_fn(f"strap Parameters: {strap_params}")
+        self.args.logger.info("Total Parameters: %d", sum(p.numel() for p in self.parameters()))
+        self.args.logger.info(
+            "Trainable Parameters: %d", sum(p.numel() for p in self.parameters() if p.requires_grad)
+        )
 
-    def load_state_dict(self, state_dict, strict=True):
-        """Backward-compatible loading for older STRAP checkpoints.
-
-        Older checkpoints may contain a lazily-created projector buffer
-        (`strap.projector.weight`). The simplified STRAP keeps projector as
-        runtime-initialized state, so we safely drop this key when loading.
-        """
-        if isinstance(state_dict, dict) and "strap.projector.weight" in state_dict:
-            state_dict = dict(state_dict)
-            state_dict.pop("strap.projector.weight", None)
-        return super().load_state_dict(state_dict, strict=strict)
-    
     def initialize_patterns(self, data, adj, force=False):
         if not self.use_strap:
             return False
-            
-        year = self.current_year if self.current_year is not None else getattr(self.args, "year", None)
-        if year is None:
-            print("Year is None")
-            return False
-            
-        has_library = self.strap.switch_to_year(year)
-        
-        if not has_library or force:
-            print(f"Creating pattern library for year {year}...")
-            success = self.strap.extract_patterns(data, adj, year)
-            if success:
-                self.pattern_initialized = True
-                print(f"Year {year} pattern library initialized")
-                return True
-            else:
-                print(f"Error in creating pattern library for year {year}")
-                return False
-        else:
-            self.pattern_initialized = True
-            print(f"Loaded pattern library for year {year}")
-            return True
-    
+        if force or not self.strap.switch_to_year(self.current_year):
+            self.strap.extract_patterns(data, adj, self.current_year)
+        return True
+
     def update_patterns(self, data, adj, year=None):
-        if not self.use_strap:
-            return False
-            
-        year = year or self.current_year
-        if year is None:
-            print("Year is None")
-            return False
-            
-        success = self.strap.extract_patterns(data, adj, year)
-        if success:
-            print(f"Pattern library updated for year {year}")
-            self.pattern_initialized = True
-            return True
-        else:
-            print(f"Error in updating pattern library for year {year}")
-            return False
-    
+        if year is not None:
+            self.current_year = year
+        return self.initialize_patterns(data, adj, force=True)
+
     def set_year(self, year):
         self.current_year = year
-        
-        if self.use_strap:
-            has_library = self.strap.switch_to_year(year)
-            self.pattern_initialized = has_library
-    
-        return self.pattern_initialized
-    
+        return self.use_strap and self.strap.switch_to_year(year)
+
     def _prepare_strap(self, data, adj):
-        if self.use_strap and not self.pattern_initialized and self.training:
-            if hasattr(data, 'device'):
-                adj_device = adj.device
-                adj_cpu = adj.cpu()
-                self.initialize_patterns(data, adj_cpu)
-                adj = adj.to(adj_device)
-            else:
+        if self.use_strap and not self.pattern_initialized:
+            if self.training:
                 self.initialize_patterns(data, adj)
-        return adj
-    
-    def _apply_strap(self, feature_mid):
-        if not (self.use_strap and self.pattern_initialized):
-            return feature_mid
-            
-        try:
-            if self.current_year is not None:
-                self.strap.switch_to_year(self.current_year)
-            
-            B, N, C = feature_mid.shape
-            
-            feature_mid_flat = feature_mid.reshape(-1, C)
-            adapted_features = self.strap_adapter(feature_mid_flat)
-            
-            self.args.return_pattern_or_value = 'value'
-            enhanced_features = self.strap(adapted_features)
-            
-            return enhanced_features.reshape(B, N, -1)
-            
-        except Exception as e:
-            print(f"STRAP application error: {e}")
-            import traceback
-            traceback.print_exc()
-            return feature_mid
-    
-    def forward(self, data, adj):
+            elif not self.strap.switch_to_year(self.current_year):
+                raise FileNotFoundError(f"No STRAP pattern library for year {self.current_year}")
 
-        adj = self._prepare_strap(data, adj)
-
-        N = adj.shape[0]
-
-        x = data.x.reshape((-1, N, self.args.gcn["in_channel"]))
-        
-
-        feature_mid = self.backbone(x, adj)
-
-        enhanced_feature_mid = self._apply_strap(feature_mid)
-        
-        # 重塑特征
-        feature_out = enhanced_feature_mid.reshape(-1, enhanced_feature_mid.shape[-1])
-        
-        if feature_out.shape[-1] != self.args.gcn["out_channel"]:
-            feature_out = F.adaptive_avg_pool1d(
-                feature_out.unsqueeze(1), self.args.gcn["out_channel"]
-            ).squeeze(1)
-        
-        x = feature_out + data.x
-        
-        x = self.fc(self.activation(x))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        
-        return x
-    
     def feature(self, data, adj):
-        
-        N = adj.shape[0]
-        
-        x = data.x.reshape((-1, N, self.args.gcn["in_channel"]))
-        
-        feature_mid = self.backbone(x, adj)
-        
-        enhanced_feature_mid = self._apply_strap(feature_mid)
-        
-        feature_out = enhanced_feature_mid.reshape(-1, enhanced_feature_mid.shape[-1])
-        
-        if feature_out.shape[-1] != self.args.gcn["out_channel"]:
-            feature_out = F.adaptive_avg_pool1d(
-                feature_out.unsqueeze(1), self.args.gcn["out_channel"]
+        self._prepare_strap(data, adj)
+        x = data.x.reshape(-1, adj.shape[0], self.args.gcn["in_channel"])
+        features = self.backbone(x, adj).reshape(-1, self.args.gcn["out_channel"])
+        if self.use_strap:
+            features = self.strap(self.strap_adapter(features))
+            features = F.adaptive_avg_pool1d(
+                features.unsqueeze(1), self.args.gcn["out_channel"]
             ).squeeze(1)
-        
-        x = feature_out + data.x
-        return x
+        return features + data.x
 
-
-# -----------------------------------------------
-# STRAP integrated implementation (simplified)
-# -----------------------------------------------
-
-class PatternLibraryManager:
-    """Lightweight year-based pattern storage (memory + optional local cache)."""
-
-    def __init__(self, args):
-        self.base_dir = None
-        if hasattr(args, "path") and args.path:
-            self.base_dir = os.path.join(args.path, "pattern_libraries")
-            os.makedirs(self.base_dir, exist_ok=True)
-        self._cache = {}
-
-    def _key(self, year, pattern_type):
-        return f"{int(year)}::{pattern_type}"
-
-    def _file_path(self, year, pattern_type):
-        if self.base_dir is None:
-            return None
-        return os.path.join(self.base_dir, f"{int(year)}_{pattern_type}.pkl")
-
-    def get_library_for_year(self, year, pattern_type="spatiotemporal"):
-        key = self._key(year, pattern_type)
-        if key in self._cache:
-            return self._cache[key]
-
-        file_path = self._file_path(year, pattern_type)
-        if file_path and os.path.exists(file_path):
-            with open(file_path, "rb") as f:
-                data = pickle.load(f)
-            self._cache[key] = data
-            return data
-        return None
-
-    def update_library(self, year, library_data, metadata=None, pattern_type="spatiotemporal"):
-        key = self._key(year, pattern_type)
-        payload = {
-            "patterns": library_data.get("patterns", []),
-            "values": library_data.get("values", []),
-            "metadata": metadata or {},
-        }
-        self._cache[key] = payload
-
-        file_path = self._file_path(year, pattern_type)
-        if file_path:
-            with open(file_path, "wb") as f:
-                pickle.dump(payload, f)
-        return True
-
-
-class FormanRicciCurvature:
-    """Compatibility placeholder."""
-
-    @staticmethod
-    def compute(adj_matrix):
-        if isinstance(adj_matrix, torch.Tensor):
-            return torch.zeros_like(adj_matrix, dtype=torch.float32)
-        return np.zeros_like(adj_matrix, dtype=np.float32)
-
-
-class RandomProjection(nn.Module):
-    def __init__(self, input_dim, output_dim, seed=42):
-        super().__init__()
-        generator = torch.Generator()
-        generator.manual_seed(seed)
-        weight = torch.randn(input_dim, output_dim, generator=generator) / max(output_dim, 1) ** 0.5
-        self.register_buffer("weight", weight)
-
-    def forward(self, x):
-        return x @ self.weight
-
-
-class STRAP(nn.Module):
-    """Simplified STRAP retrieval module.
-
-    Fixes from old implementation:
-    - Correctly reads feature_dim from both dict-style and object-style args.gcn.
-    - Uses robust tensor-only retrieval (no heavy Annoy/index bookkeeping).
-    - Keeps API compatible with RAP_Model: switch_to_year / extract_patterns / forward.
-    """
-
-    def __init__(self, args):
-        super().__init__()
-        self.args = args
-        gcn_cfg = getattr(args, "gcn", {})
-        if isinstance(gcn_cfg, dict):
-            self.feature_dim = gcn_cfg.get("hidden_channel", gcn_cfg.get("out_channel", 64))
-        else:
-            self.feature_dim = getattr(gcn_cfg, "hidden_channel", getattr(gcn_cfg, "out_channel", 64))
-
-        self.k_neighbors = int(getattr(args, "k_neighbors", 16))
-        self.max_patterns = int(getattr(args, "max_patterns", 2048))
-        self.fusion_weight = float(getattr(args, "fusion_weight", 0.7))
-
-        self.pattern_manager = PatternLibraryManager(args)
-        self.current_year = None
-        self.projector = None
-
-        self.patterns = {"spatiotemporal": None}
-        self.values = {"spatiotemporal": None}
-
-    def _ensure_projector(self, input_dim, device):
-        if self.projector is None or self.projector.weight.shape[0] != input_dim:
-            self.projector = RandomProjection(input_dim, self.feature_dim).to(device)
-
-    def _to_tensor(self, array_like, device):
-        if isinstance(array_like, torch.Tensor):
-            return array_like.to(device=device, dtype=torch.float32)
-        return torch.tensor(array_like, device=device, dtype=torch.float32)
-
-    def _normalize(self, x):
-        return F.normalize(x, dim=-1, eps=1e-8)
-
-    def _build_library_from_data(self, data):
-        x = data.x
-        if not isinstance(x, torch.Tensor):
-            x = torch.tensor(x, dtype=torch.float32)
-        x = x.detach().float()
-        if x.dim() > 2:
-            x = x.reshape(-1, x.shape[-1])
-
-        self._ensure_projector(x.shape[-1], x.device)
-        feats = self._normalize(self.projector(x))
-
-        if feats.shape[0] > self.max_patterns:
-            idx = torch.randperm(feats.shape[0], device=feats.device)[: self.max_patterns]
-            feats = feats[idx]
-
-        values = feats.clone()
-        return feats.cpu(), values.cpu()
-
-    def switch_to_year(self, year):
-        lib = self.pattern_manager.get_library_for_year(year, "spatiotemporal")
-        if lib is None:
-            return False
-        self.current_year = int(year)
-        self.patterns["spatiotemporal"] = lib["patterns"]
-        self.values["spatiotemporal"] = lib["values"]
-        return True
-
-    def extract_patterns(self, data, adj=None, year=None):
-        if year is None:
-            year = getattr(self.args, "year", None)
-        if year is None:
-            return False
-
-        patterns, values = self._build_library_from_data(data)
-        payload = {
-            "patterns": patterns,
-            "values": values,
-        }
-        meta = {
-            "method": "simplified_strap",
-            "num_patterns": int(patterns.shape[0]),
-            "feature_dim": int(patterns.shape[1]),
-        }
-        self.pattern_manager.update_library(year, payload, meta, "spatiotemporal")
-        self.current_year = int(year)
-        self.patterns["spatiotemporal"] = patterns
-        self.values["spatiotemporal"] = values
-        return True
-
-    def _retrieve(self, query):
-        patterns = self.patterns["spatiotemporal"]
-        values = self.values["spatiotemporal"]
-        if patterns is None or values is None:
-            return query
-
-        patterns = self._to_tensor(patterns, query.device)
-        values = self._to_tensor(values, query.device)
-        query_n = self._normalize(query)
-        patterns_n = self._normalize(patterns)
-
-        sim = query_n @ patterns_n.t()
-        k = max(1, min(self.k_neighbors, sim.shape[1]))
-        topk_val, topk_idx = torch.topk(sim, k=k, dim=1)
-
-        neighbor_values = values[topk_idx]
-        weights = F.softmax(topk_val, dim=1).unsqueeze(-1)
-        return (neighbor_values * weights).sum(dim=1)
-
-    def forward(self, x):
-        if not isinstance(x, torch.Tensor):
-            x = torch.tensor(x, dtype=torch.float32)
-
-        if x.shape[-1] != self.feature_dim:
-            x = F.adaptive_avg_pool1d(x.unsqueeze(1), self.feature_dim).squeeze(1)
-
-        retrieved = self._retrieve(x)
-        out = self.fusion_weight * x + (1.0 - self.fusion_weight) * retrieved
-
-        mode = getattr(self.args, "return_pattern_or_value", "value")
-        if mode == "pattern":
-            return self._normalize(out)
-        return out
+    def forward(self, data, adj):
+        x = self.fc(self.activation(self.feature(data, adj)))
+        return F.dropout(x, p=self.dropout, training=self.training)

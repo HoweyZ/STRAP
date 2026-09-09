@@ -1,32 +1,29 @@
 import torch
-import numpy as np
-from torch_geometric.data import Data, Dataset
+from torch.utils.data import Dataset
+from torch_geometric.data import Data
 
 
 class SpatioTemporalDataset(Dataset):
     def __init__(self, inputs, split, x='', y='', edge_index='', mode='default'):
         if mode == 'default':
-            self.x = inputs[split+'_x'] # [T, Len, N]
-            self.y = inputs[split+'_y'] # [T, Len, N]
-        else:
-            self.x = x
-            self.y = y
-    
+            x, y = inputs[split + '_x'], inputs[split + '_y']
+        # Convert once per split. Each sample is a view with shape [node, step].
+        self.x = torch.as_tensor(x, dtype=torch.float32).transpose(1, 2)
+        self.y = torch.as_tensor(y, dtype=torch.float32).transpose(1, 2)
+
     def __len__(self):
         return self.x.shape[0]
 
     def __getitem__(self, index):
-        x = torch.Tensor(self.x[index].T)
-        y = torch.Tensor(self.y[index].T)
-        return Data(x=x, y=y)  # Returns a Data object containing input features and targets, note that [batch, Node, Step] is converted to -> [batch * Node, Step]
-    
+        return Data(x=self.x[index], y=self.y[index])
+
+
 class continue_learning_Dataset(Dataset):
     def __init__(self, inputs):
-        self.x = inputs # [T, Len, N]
-    
+        self.x = torch.as_tensor(inputs, dtype=torch.float32).transpose(1, 2)
+
     def __len__(self):
         return self.x.shape[0]
 
     def __getitem__(self, index):
-        x = torch.Tensor(self.x[index].T)
-        return Data(x=x)
+        return Data(x=self.x[index])

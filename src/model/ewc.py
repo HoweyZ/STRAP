@@ -1,81 +1,44 @@
+"""Elastic weight consolidation for the shared training loop."""
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch import autograd
-
-import numpy as np
-import logging
-import pdb
-
-from torch_geometric.data import Data
+from torch import nn
 
 
 class EWC(nn.Module):
-
-    def __init__(self, model, adj, ewc_lambda = 0, ewc_type = 'ewc'):
-        super(EWC, self).__init__()
+    def __init__(self, model, adj, ewc_lambda=0, ewc_type="ewc"):
+        super().__init__()
         self.model = model
         self.ewc_lambda = ewc_lambda
         self.ewc_type = ewc_type
         self.adj = adj
 
-    def _update_mean_params(self):
-        for param_name, param in self.model.named_parameters():
-            _buff_param_name = param_name.replace('.', '__')
-            self.register_buffer(_buff_param_name + '_estimated_mean', param.data.clone())
-
-    def _update_fisher_params(self, loader, lossfunc, device):
-        _buff_param_names = [param[0].replace('.', '__') for param in self.model.named_parameters()]
-        est_fisher_info = {name: 0.0 for name in _buff_param_names}
-        for i, data in enumerate(loader):
-            data = data.to(device, non_blocking=True)
-            pred = self.model.forward(data, self.adj)
-            log_likelihood = lossfunc(data.y, pred, reduction='mean')
-            grad_log_liklihood = autograd.grad(log_likelihood, self.model.parameters())
-            for name, grad in zip(_buff_param_names, grad_log_liklihood):
-                est_fisher_info[name] += grad.data.clone() ** 2
-        for name in _buff_param_names:
-            self.register_buffer(name + '_estimated_fisher', est_fisher_info[name])
-    
-    
-    def _update_fisher_params_for_stkec(self, loader, lossfunc, device):
-        _buff_param_names = [param[0].replace('.', '__') for param in self.model.named_parameters()]
-        est_fisher_info = {name: 0.0 for name in _buff_param_names}
-        for i, data in enumerate(loader):
-            data = data.to(device, non_blocking=True)
-            pred, _ = self.model.forward(data, self.adj)
-            log_likelihood = lossfunc(data.y, pred, reduction='mean')
-            grad_log_liklihood = autograd.grad(log_likelihood, self.model.parameters())
-            for name, grad in zip(_buff_param_names, grad_log_liklihood):
-                est_fisher_info[name] += grad.data.clone() ** 2
-        for name in _buff_param_names:
-            self.register_buffer(name + '_estimated_fisher', est_fisher_info[name])
-
-
-    def register_ewc_params(self, loader, lossfunc, device):
-        self._update_fisher_params(loader, lossfunc, device)
-        self._update_mean_params()
-    
-    
-    def register_ewc_params_for_stkec(self, loader, lossfunc, device):
-        self._update_fisher_params_for_stkec(loader, lossfunc, device)
-        self._update_mean_params()
-
+    def register_ewc_params(self, loader, lossfunc, device, with_attention=False):
+        parameters = [(name.replace(".", "__"), param)
+                      for name, param in self.model.named_parameters() if param.requires_grad]
+        fisher = [torch.zeros_like(param) for _, param in parameters]
+        for data in loader:
+            data.x = data.x.to(device, non_blocking=True)
+            data.y = data.y.to(device, non_blocking=True)
+            output = self.model(data, self.adj)
+            pred = output[0] if with_attention else output
+            loss = lossfunc(pred, data.y, reduction="mean")
+            gradients = torch.autograd.grad(loss, [param for _, param in parameters])
+            for estimate, gradient in zip(fisher, gradients):
+                estimate.add_(gradient.detach().square())
+        for (name, param), estimate in zip(parameters, fisher):
+            self.register_buffer(name + "_estimated_mean", param.detach().clone())
+            self.register_buffer(name + "_estimated_fisher", estimate)
 
     def compute_consolidation_loss(self):
         losses = []
-        for param_name, param in self.model.named_parameters():
-            _buff_param_name = param_name.replace('.', '__')
-            estimated_mean = getattr(self, '{}_estimated_mean'.format(_buff_param_name))
-            estimated_fisher = getattr(self, '{}_estimated_fisher'.format(_buff_param_name))
-            if estimated_fisher == None:
-                losses.append(0)
-            elif self.ewc_type == 'l2':
-                losses.append((10e-6 * (param - estimated_mean) ** 2).sum())
-            else:
-                losses.append((estimated_fisher * (param - estimated_mean) ** 2).sum())
-        return 1 * (self.ewc_lambda / 2) * sum(losses)
-    
-    def forward(self, data, adj): 
+        for name, param in self.model.named_parameters():
+            if not param.requires_grad:
+                continue
+            name = name.replace(".", "__")
+            mean = getattr(self, name + "_estimated_mean")
+            weight = 1e-5 if self.ewc_type == "l2" else getattr(self, name + "_estimated_fisher")
+            losses.append((weight * (param - mean).square()).sum())
+        return (self.ewc_lambda / 2) * sum(losses)
+
+    def forward(self, data, adj):
         return self.model(data, adj)
