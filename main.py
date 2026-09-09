@@ -186,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_first_year", type = int, default = 0, help="0: training first year, 1: load from model path of first year")
     parser.add_argument("--first_year_model_path", type = str, default = "", help='specify a pretrained model root')
     args = parser.parse_args()
-    vars(args)["device"] = torch.device("cuda:{}".format(args.gpuid)) if torch.cuda.is_available() and args.gpuid != -1 else "cpu"
+    vars(args)["device"] = torch.device("cpu" if args.gpuid == -1 else f"cuda:{args.gpuid}")
     vars(args)["methods"] = {'PECPM':PECPM_Model,'ST-Adapter':STAdapter_Model,'GraphPro':GraphPro_Model,'STGNN_Model':STGNN_Model,'ASTGNN_Model':ASTGNN_Model,'DCRNN_Model':DCRNN_Model,'TGCN_Model':TGCN_Model,'STLoRA':STLora_Model,'RAP':RAP_Model,'TrafficStream': TrafficStream_Model, 'STKEC': STKEC_Model, 'EAC': EAC_Model} 
     
     init(args)

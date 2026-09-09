@@ -28,8 +28,6 @@ class BatchGCNConv(nn.Module):
 
 
     def forward(self, x, adj):
-        if x.device != adj.device:
-            adj = adj.to(x.device)
     
         input_x = torch.matmul(adj, x)  # [N, N] * [bs, N, in_features] = [bs, N, in_features]
         # x: [bs, N, in_features], adj: [N, N]

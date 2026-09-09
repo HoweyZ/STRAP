@@ -93,6 +93,61 @@ bash run.sh
 
 ---
 
+## Runtime and validation
+
+The active retrieval implementation is `src/model/STRAP.py`. Models import it
+from `src/model/model.py`; prediction and STKEC trainers share
+`src/trainer/engine.py`.
+
+- STRAP keys and values are device buffers. Projection, cosine search, top-k and
+  weighted retrieval stay on the model device. Pattern files use CPU tensors;
+  transfers happen when saving or loading a year, not per forward pass.
+- `retrieval_batch_size` (default 1024) limits the temporary query-by-library
+  similarity matrix. `max_patterns` defaults to 2048 and `k_neighbors` to 16.
+  These optional JSON settings must be positive. Chunking preserves exact top-k
+  retrieval and gradients; it does not select a different retrieval algorithm.
+- PECPM history and drift histograms stay on the device. Detection returns only
+  the node-score vector to the CPU graph-selection code.
+- Validation uses tensor metrics. Test metrics accumulate per-horizon sums
+  instead of keeping all predictions. Only final metric summaries and epoch
+  losses cross to the CPU for reporting. Dataset batches still enter from host
+  memory; pinning and non-blocking copies are enabled for CUDA. `num_workers`
+  is configurable in JSON and defaults to 0 for the shared trainer.
+
+Select CUDA with `--gpuid N`, or select CPU explicitly with `--gpuid -1`.
+Unavailable CUDA devices, invalid backbone names and retrieval errors raise
+errors. Evaluation requires the pattern library for the selected year; it does
+not create patterns from validation/test data or silently skip STRAP.
+
+The fixed input projection is initialized in the constructor and is stored as
+`strap.projector.weight` in RAP checkpoints. Existing checkpoints containing
+that key load strictly. Older checkpoints without it must be recreated by
+training with the current code; keys are never silently added or discarded.
+Yearly pattern `.pkl` files from the integrated implementation retain their
+format. Standalone tensor queries must have `gcn.hidden_channel` features; RAP
+performs the learned adaptation before querying.
+
+Training also corrects three pre-existing issues: validation now uses eval
+mode, STKEC clustering labels use cluster indices and retain gradients, and
+checkpoint filenames are compared by numeric loss. These corrections can
+change training trajectories. Constant feature distributions have zero drift
+when compared with themselves.
+
+Run the regression suite with the dependencies from `environment.yaml`:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m unittest discover -s tests -v
+```
+
+The tests cover retrieval values and gradients, pattern/checkpoint lifecycles,
+streamed metrics against NumPy, drift scores against SciPy, auxiliary-loss
+gradients, and two-year/incremental training. The CUDA residency and transfer
+profiler test runs only when CUDA is available; a skipped CUDA test is not a
+GPU performance measurement. Full dataset accuracy and throughput require the
+external datasets and a CUDA machine.
+
+---
+
 ## 🙏 Acknowledgements
 
 We would like to express our gratitude to:
