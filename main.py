@@ -17,6 +17,7 @@ from src.model import replay
 from utils.initialize import init, seed_anything, init_log
 from utils.common_tools import mkdirs, load_best_model, long_term_pattern
 from trainer.default_trainer import train, test_model
+from src.trainer.engine import initialize_training_patterns
 
 
 def main(args):
@@ -55,6 +56,8 @@ def main(args):
         
         if year == args.begin_year and args.load_first_year:  # If it is the first year and you need to skip the first year, the model has been trained and does not need to be retrained
             model, _ = load_best_model(args)
+            if args.train:
+                initialize_training_patterns(model, inputs, args)
             test_loader = DataLoader(SpatioTemporalDataset(inputs, "test"), batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=32)
             test_model(model, args, test_loader, pin_memory=True)
             continue
@@ -134,6 +137,7 @@ def main(args):
         # When there are no nodes that need incremental training, skip this year
         if args.strategy != "retrain" and year > args.begin_year and len(args.node_list) == 0:
             model, loss = load_best_model(args)  # Load the best model
+            initialize_training_patterns(model, inputs, args)
             mkdirs(osp.join(args.model_path, args.logname+"-"+str(args.seed), str(args.year)))
             torch.save({'model_state_dict': model.state_dict()}, osp.join(args.model_path, args.logname+"-"+str(args.seed), str(args.year), loss+".pkl"))  # 保存模型
             test_loader = DataLoader(SpatioTemporalDataset(inputs, "test"), batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=32)
