@@ -5,6 +5,7 @@ from time import perf_counter
 
 import torch
 from torch.nn import functional as F
+from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
 from src.dataer.SpatioTemporalDataset import SpatioTemporalDataset
@@ -47,6 +48,16 @@ def _targets(pred, target, n_nodes, mapping):
     return pred, target
 
 
+def initialize_training_patterns(model, inputs, args):
+    if args.method == "RAP" and model.use_strap and not model.set_year(args.year):
+        count = model.strap.params["pattern_build_samples"]
+        # generate_dataset stores windows newest first. Reverse consecutive windows
+        # to restore chronology, using the full training graph during incremental years.
+        features = torch.as_tensor(inputs["train_x"][:count], dtype=torch.float32)
+        features = features.to(args.device).flip(0).transpose(1, 2).contiguous()
+        model.initialize_patterns(Data(x=features), args.adj)
+
+
 def train(inputs, args, with_attention=False):
     path = Path(args.path) / str(args.year)
     path.mkdir(parents=True, exist_ok=True)
@@ -84,6 +95,8 @@ def train(inputs, args, with_attention=False):
                 if any(part in name for part in ("gcn1", "tcn1", "gcn2", "fc")):
                     param.requires_grad_(False)
         gnn_model.expand_adaptive_params(args.graph_size)
+
+    initialize_training_patterns(gnn_model, inputs, args)
 
     model = gnn_model
     if continuing and args.ewc:

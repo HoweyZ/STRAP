@@ -1442,7 +1442,11 @@ class RAP_Model(nn.Module):
         if not self.use_strap:
             return False
         if force or not self.strap.switch_to_year(self.current_year):
-            self.strap.extract_patterns(data, adj, self.current_year)
+            was_training = self.backbone.training
+            self.backbone.eval()
+            self.strap.extract_patterns(data, adj, self.current_year, self.backbone)
+            self.backbone.train(was_training)
+        self.args.logger.info("STRAP year %s pattern sources: %s", self.current_year, self.strap.source_counts)
         return True
 
     def update_patterns(self, data, adj, year=None):
@@ -1454,15 +1458,9 @@ class RAP_Model(nn.Module):
         self.current_year = year
         return self.use_strap and self.strap.switch_to_year(year)
 
-    def _prepare_strap(self, data, adj):
-        if self.use_strap and not self.pattern_initialized:
-            if self.training:
-                self.initialize_patterns(data, adj)
-            elif not self.strap.switch_to_year(self.current_year):
-                raise FileNotFoundError(f"No STRAP pattern library for year {self.current_year}")
-
     def feature(self, data, adj):
-        self._prepare_strap(data, adj)
+        if self.use_strap and not self.pattern_initialized:
+            raise RuntimeError(f"Initialize the STRAP training library for {self.current_year} before prediction")
         x = data.x.reshape(-1, adj.shape[0], self.args.gcn["in_channel"])
         features = self.backbone(x, adj).reshape(-1, self.args.gcn["out_channel"])
         if self.use_strap:

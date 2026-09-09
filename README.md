@@ -93,58 +93,83 @@ bash run.sh
 
 ---
 
-## Runtime and validation
+## STRAP implementation and runtime
 
-The active retrieval implementation is `src/model/STRAP.py`. Models import it
-from `src/model/model.py`; prediction and STKEC trainers share
-`src/trainer/engine.py`.
+`main.py` uses `RAP_Model` in `src/model/model.py`. RAP passes its actual
+STGNN/DCRNN/ASTGNN/TGCN backbone to `PatternExtractor` in
+`src/model/pattern_features.py`; `src/model/STRAP.py` owns the three pattern
+libraries, paired history, retrieval and learned fusion.
 
-- STRAP keys and values are device buffers. Projection, cosine search, top-k and
-  weighted retrieval stay on the model device. Pattern files use CPU tensors;
-  transfers happen when saving or loading a year, not per forward pass.
-- `retrieval_batch_size` (default 1024) limits the temporary query-by-library
-  similarity matrix. `max_patterns` defaults to 2048 and `k_neighbors` to 16.
-  These optional JSON settings must be positive. Chunking preserves exact top-k
-  retrieval and gradients; it does not select a different retrieval algorithm.
-- PECPM history and drift histograms stay on the device. Detection returns only
-  the node-score vector to the CPU graph-selection code.
-- Validation uses tensor metrics. Test metrics accumulate per-horizon sums
-  instead of keeping all predictions. Only final metric summaries and epoch
-  losses cross to the CPU for reporting. Dataset batches still enter from host
-  memory; pinning and non-blocking copies are enabled for CUDA. `num_workers`
-  is configurable in JSON and defaults to 0 for the shared trainer.
+| Library | Key construction | Value construction |
+| --- | --- | --- |
+| Spatial | Degree groups and modularity communities: signal moments, degree statistics and graph structure | Mean backbone output on the same subgraph |
+| Spatial | Negative/zero/positive node curvature, high-flow/fluctuation/bottleneck edge curvature, degree and 16-dimensional topology descriptor | Backbone neighborhood-center features; endpoint means for edges |
+| Temporal | Each node's k-hop neighborhood: signal/graph statistics and level-2 db4 coefficient moments over consecutive samples | Mean backbone output on that neighborhood |
+| Temporal | Level-4 db4 coefficient magnitudes for each node's input window | Backbone output for that actual input on a singleton graph |
+| Spatiotemporal | Spectral clusters in overlapping time windows, with the same statistical and wavelet descriptors | Mean backbone output on the same cluster/window |
+| Spatiotemporal | Top spatial–temporal pairs by cosine affinity, followed by pooled key outer products | Pooled outer products of the corresponding values |
 
-Select CUDA with `--gpuid N`, or select CPU explicitly with `--gpuid -1`.
-Unavailable CUDA devices, invalid backbone names and retrieval errors raise
-errors. Evaluation requires the pattern library for the selected year; it does
-not create patterns from validation/test data or silently skip STRAP.
+Topology includes degree, clustering, closeness, betweenness, eigenvector
+centrality and neighborhood degree statistics. It covers every connected
+component. The topology embedding contributes to key matching and is trained
+through retrieval weights. Node and edge curvature retain the original STRAP
+formulas. db4 uses symmetric boundary extension, including short input windows.
+No key constructor substitutes zeros or random features after an error.
 
-The fixed input projection is initialized in the constructor and is stored as
-`strap.projector.weight` in RAP checkpoints. Existing checkpoints containing
-that key load strictly. Older checkpoints without it must be recreated by
-training with the current code; keys are never silently added or discarded.
-Yearly pattern `.pkl` files from the integrated implementation retain their
-format. Standalone tensor queries must have `gcn.hidden_channel` features; RAP
-performs the learned adaptation before querying.
+`initialize_training_patterns` in `src/trainer/engine.py` builds each year's
+libraries before training or EWC. It uses the latest consecutive training
+windows (`pattern_build_samples`, default `batch_size`), reverses the repository's
+newest-first dataset order into chronological order, and builds on the full
+graph even in incremental years. Skipping parameter training for a year with no
+new nodes still initializes that year's library. Prediction never builds a
+library from validation/test data. Direct RAP users must call
+`initialize_patterns(training_data, adj)` with chronological data before the
+first prediction, or load a saved year with `set_year(year)`.
 
-Training also corrects three pre-existing issues: validation now uses eval
-mode, STKEC clustering labels use cluster indices and retain gradients, and
-checkpoint filenames are compared by numeric loss. These corrections can
-change training trajectories. Constant feature distributions have zero drift
-when compared with themselves.
+History is sampled by inverse key norm, with age decay and an adaptive merge
+ratio. Every sampled index selects its key, value and topology together. Each
+archive contains only its own year's selected current patterns, avoiding repeated
+accumulation of ancestors. `history_ratio` defaults to 0.3; `history_limit`
+defaults to 10000 per library. Rebuilding a year creates a new version.
 
-Run the regression suite with the dependencies from `environment.yaml`:
+- Active keys, distinct values and topology are model-device buffers. The same
+  fixed Rademacher projection transforms queries and keys. Exact Euclidean
+  search, per-library candidate selection, global top-k and distance-weighted
+  aggregation stay on the device. Feature and retrieved-pattern embeddings
+  are combined with `fusion_weight` (default 0.7).
+- `use_spatial_lib`, `use_temporal_lib` and `use_spatiotemporal_lib` default to
+  true. Their corresponding `*_dropout` settings apply during training. Cross
+  patterns require all three libraries; independent spectral patterns require
+  only the spatiotemporal library. `return_pattern_or_value` selects the
+  retrieved payload and defaults to `value`.
+- `k_neighbors` defaults to 50. Per-library retrieval counts retain defaults
+  of 50000/50000/100000. Query/key search chunks default to 128/4096 and can be
+  set with `retrieval_batch_size`/`retrieval_key_batch_size`. Gradients are
+  computed only for selected distances, avoiding a dense retrieval autograd
+  graph. There is no special bypass for batches larger than 256.
+- `temporal_k_hop` defaults to 2; `max_neighbors` to 20; `max_cluster_nodes` to
+  100. `time_window`/`time_overlap` default to 12/6. `spatial_clusters` defaults
+  to automatic selection. `cross_pattern_count` and `curvature_pattern_count`
+  default to 2000 (the latter per curvature category). Spatial groups retain
+  a minimum size of 5; spectral groups retain a minimum size of 3. Counts per
+  constructor are logged and saved as `source_counts`, including empty groups.
+- Graph partitions, centralities and shortest paths use a single CPU graph
+  snapshot at build time. Indices and structural descriptors are uploaded once
+  and reused. Wavelets, numerical moments, curvature, outer products, sampling
+  and retrieval use Torch on the input device. CPU graph preprocessing and
+  library disk I/O remain explicit boundaries.
 
-```bash
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m unittest discover -s tests -v
-```
+The full method stores versioned yearly `.pt` files and metadata in
+`pattern_libraries/strap_full_v1/`. The previous simplified implementation's
+caches and checkpoints are incompatible: start a new training run to generate
+full-method artifacts. Loading remains strict; missing prediction libraries,
+invalid configuration and extraction errors are reported directly.
 
-The tests cover retrieval values and gradients, pattern/checkpoint lifecycles,
-streamed metrics against NumPy, drift scores against SciPy, auxiliary-loss
-gradients, and two-year/incremental training. The CUDA residency and transfer
-profiler test runs only when CUDA is available; a skipped CUDA test is not a
-GPU performance measurement. Full dataset accuracy and throughput require the
-external datasets and a CUDA machine.
+Select CUDA with `--gpuid N`, or CPU explicitly with `--gpuid -1`. Tensor metrics,
+PECPM history and drift histograms also remain on the selected device. Dataset
+batches enter from host memory; CUDA loaders use pinning and non-blocking copies.
+No additional test files are shipped. Full-dataset accuracy and GPU throughput
+must be measured with the external datasets on a CUDA machine.
 
 ---
 
